@@ -5,4 +5,4 @@
 // Package lockfree offers lock-free utilities
 //
 // Note that this package is under development and not for production use.
-package lockfree // import "golang.design/x/lockfree"
+package lockfree // import "github.com/sug0/lockfree"

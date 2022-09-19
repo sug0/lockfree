@@ -1,3 +1,3 @@
-module golang.design/x/lockfree
+module github.com/sug0/lockfree
 
-go 1.13
+go 1.18
