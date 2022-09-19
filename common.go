@@ -9,18 +9,15 @@ import (
 	"unsafe"
 )
 
-// Less defines a function that compares the order of a and b.
-// Returns true if a < b
-type Less func(a, b interface{}) bool
-
-type directItem struct {
+type directItem[T any] struct {
 	next unsafe.Pointer
-	v    interface{}
+	v    *T
 }
 
-func loaditem(p *unsafe.Pointer) *directItem {
-	return (*directItem)(atomic.LoadPointer(p))
+func loaditem[T any](p *unsafe.Pointer) *directItem[T] {
+	return (*directItem[T])(atomic.LoadPointer(p))
 }
-func casitem(p *unsafe.Pointer, old, new *directItem) bool {
+
+func casitem[T any](p *unsafe.Pointer, old, new *directItem[T]) bool {
 	return atomic.CompareAndSwapPointer(p, unsafe.Pointer(old), unsafe.Pointer(new))
 }
