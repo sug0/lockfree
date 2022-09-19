@@ -11,23 +11,27 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"golang.design/x/lockfree"
+	"github.com/sug0/lockfree"
 )
 
+func ptr[T any](x T) *T {
+	return &x
+}
+
 func TestQueueDequeueEmpty(t *testing.T) {
-	q := lockfree.NewQueue()
+	q := lockfree.NewQueue[int]()
 	if q.Dequeue() != nil {
 		t.Fatalf("dequeue empty queue returns non-nil")
 	}
 }
 
 func TestQueue_Length(t *testing.T) {
-	q := lockfree.NewQueue()
+	q := lockfree.NewQueue[int]()
 	if q.Length() != 0 {
 		t.Fatalf("empty queue has non-zero length")
 	}
 
-	q.Enqueue(1)
+	q.Enqueue(ptr(1))
 	if q.Length() != 1 {
 		t.Fatalf("count of enqueue wrong, want %d, got %d.", 1, q.Length())
 	}
@@ -39,15 +43,15 @@ func TestQueue_Length(t *testing.T) {
 }
 
 func ExampleQueue() {
-	q := lockfree.NewQueue()
+	q := lockfree.NewQueue[string]()
 
-	q.Enqueue("1st item")
-	q.Enqueue("2nd item")
-	q.Enqueue("3rd item")
+	q.Enqueue(ptr("1st item"))
+	q.Enqueue(ptr("2nd item"))
+	q.Enqueue(ptr("3rd item"))
 
-	fmt.Println(q.Dequeue())
-	fmt.Println(q.Dequeue())
-	fmt.Println(q.Dequeue())
+	fmt.Println(*q.Dequeue())
+	fmt.Println(*q.Dequeue())
+	fmt.Println(*q.Dequeue())
 
 	// Output:
 	// 1st item
@@ -55,27 +59,27 @@ func ExampleQueue() {
 	// 3rd item
 }
 
-type queueInterface interface {
-	Enqueue(interface{})
-	Dequeue() interface{}
+type queueInterface[T any] interface {
+	Enqueue(*T)
+	Dequeue() *T
 }
 
-type mutexQueue struct {
-	v  []interface{}
+type mutexQueue[T any] struct {
+	v  []*T
 	mu sync.Mutex
 }
 
-func newMutexQueue() *mutexQueue {
-	return &mutexQueue{v: make([]interface{}, 0)}
+func newMutexQueue[T any]() *mutexQueue[T] {
+	return &mutexQueue[T]{v: make([]*T, 0)}
 }
 
-func (q *mutexQueue) Enqueue(v interface{}) {
+func (q *mutexQueue[T]) Enqueue(v *T) {
 	q.mu.Lock()
 	q.v = append(q.v, v)
 	q.mu.Unlock()
 }
 
-func (q *mutexQueue) Dequeue() interface{} {
+func (q *mutexQueue[T]) Dequeue() *T {
 	q.mu.Lock()
 	if len(q.v) == 0 {
 		q.mu.Unlock()
@@ -93,10 +97,10 @@ func BenchmarkQueue(b *testing.B) {
 	for i := 0; i < length; i++ {
 		inputs = append(inputs, rand.Int())
 	}
-	q, mq := lockfree.NewQueue(), newMutexQueue()
+	q, mq := lockfree.NewQueue[int](), newMutexQueue[int]()
 	b.ResetTimer()
 
-	for _, q := range [...]queueInterface{q, mq} {
+	for _, q := range [...]queueInterface[int]{q, mq} {
 		b.Run(fmt.Sprintf("%T", q), func(b *testing.B) {
 			var c int64
 			b.RunParallel(func(pb *testing.PB) {
@@ -104,7 +108,7 @@ func BenchmarkQueue(b *testing.B) {
 					i := int(atomic.AddInt64(&c, 1)-1) % length
 					v := inputs[i]
 					if v >= 0 {
-						q.Enqueue(v)
+						q.Enqueue(ptr(v))
 					} else {
 						q.Dequeue()
 					}
